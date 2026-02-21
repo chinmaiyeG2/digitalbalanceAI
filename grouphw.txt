@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DigitalBalance AI | Teen Addiction Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,600;0,700;1,300&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #080c14;
+            --surface: rgba(15, 23, 40, 0.85);
+            --border: rgba(99, 130, 255, 0.15);
+            --accent: #6366f1;
+            --accent2: #22d3ee;
+            --warn: #f43f5e;
+            --ok: #4ade80;
+            --text: #e2e8f0;
+            --muted: #64748b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated mesh background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% -10%, rgba(99,102,241,0.18) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 110%, rgba(34,211,238,0.12) 0%, transparent 55%),
+                radial-gradient(ellipse 40% 60% at 50% 50%, rgba(8,12,20,0) 0%, #080c14 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .content { position: relative; z-index: 1; }
+
+        /* View Toggle */
+        .toggle-bar {
+            display: flex;
+            background: rgba(15,23,40,0.9);
+            border: 1px solid var(--border);
+            border-radius: 9999px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .toggle-btn {
+            padding: 8px 28px;
+            border-radius: 9999px;
+            border: none;
+            cursor: pointer;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+            color: var(--muted);
+            background: transparent;
+        }
+
+        .toggle-btn.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 0 20px rgba(99,102,241,0.4);
+        }
+
+        .toggle-btn.kid-active {
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+            color: white;
+            box-shadow: 0 0 20px rgba(245,158,11,0.4);
+        }
+
+        /* View panels */
+        #parent-view, #kid-view {
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        #parent-view.hidden, #kid-view.hidden {
+            display: none;
+        }
+
+        /* Glass cards */
+        .glass {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+        }
+
+        .glass-warm {
+            background: rgba(20, 14, 8, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 20px;
+        }
+
+        /* Stat pips */
+        .stat-badge {
+            font-family: 'Space Mono', monospace;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.05em;
+        }
+
+        /* Addiction score ring */
+        .score-ring {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(
+                #f43f5e 0deg,
+                #f43f5e calc(var(--pct) * 3.6deg),
+                rgba(99,102,241,0.15) calc(var(--pct) * 3.6deg)
+            );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .score-ring::after {
+            content: '';
+            position: absolute;
+            width: 86px;
+            height: 86px;
+            border-radius: 50%;
+            background: var(--bg);
+        }
+
+        .score-inner {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+        }
+
+        /* Pulse dot */
+        .pulse-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--warn);
+            animation: pulseAnim 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulseAnim {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(244,63,94,0.7); }
+            50% { box-shadow: 0 0 0 8px rgba(244,63,94,0); }
+        }
+
+        /* KID VIEW STYLES */
+        .kid-bg {
+            background: linear-gradient(160deg, #0d1117 0%, #1a0d2e 50%, #0d1a1a 100%);
+        }
+
+        .star {
+            position: fixed;
+            border-radius: 50%;
+            background: white;
+            animation: twinkle var(--dur, 3s) ease-in-out infinite var(--delay, 0s);
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
+        }
+
+        .xp-bar {
+            height: 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            overflow: hidden;
+        }
+
+        .xp-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #f59e0b, #f97316);
+            width: var(--fill);
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 12px rgba(245,158,11,0.5);
+        }
+
+        .quest-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: transform 0.2s, border-color 0.2s;
+            cursor: pointer;
+        }
+
+        .quest-card:hover { transform: translateX(4px); border-color: rgba(245,158,11,0.4); }
+        .quest-card.done { opacity: 0.5; }
+        .quest-card.done .quest-icon { filter: grayscale(1); }
+
+        .quest-icon {
+            font-size: 28px;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.07);
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+
+        .badge-item {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            gap: 2px;
+        }
+
+        .badge-locked {
+            background: rgba(255,255,255,0.04);
+            border: 2px dashed rgba(255,255,255,0.1);
+            filter: grayscale(1);
+            opacity: 0.4;
+        }
+
+        .badge-earned {
+            background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(249,115,22,0.2));
+            border: 2px solid rgba(245,158,11,0.4);
+            box-shadow: 0 0 12px rgba(245,158,11,0.2);
+        }
+
+        /* Meter bars (kid view) */
+        .meter-fill {
+            height: 8px;
+            border-radius: 999px;
+            transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glow-text {
+            text-shadow: 0 0 20px rgba(245,158,11,0.6);
+        }
+
+        /* Animations */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .anim-in {
+            animation: slideUp 0.5s ease forwards;
+        }
+
+        .anim-in:nth-child(1) { animation-delay: 0.05s; opacity: 0; }
+        .anim-in:nth-child(2) { animation-delay: 0.1s; opacity: 0; }
+        .anim-in:nth-child(3) { animation-delay: 0.15s; opacity: 0; }
+        .anim-in:nth-child(4) { animation-delay: 0.2s; opacity: 0; }
+        .anim-in:nth-child(5) { animation-delay: 0.25s; opacity: 0; }
+        .anim-in:nth-child(6) { animation-delay: 0.3s; opacity: 0; }
+
+        /* Tooltip hover */
+        .tip { position: relative; cursor: help; }
+        .tip::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 11px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 100;
+        }
+        .tip:hover::after { opacity: 1; }
+
+        hr.divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+    </style>
+</head>
+<body class="content pb-16">
+
+    <!-- Stars (kid mood) -->
+    <div id="stars-layer" style="position:fixed;inset:0;pointer-events:none;z-index:0;opacity:0;transition:opacity 0.5s;"></div>
+
+    <!-- ===== HEADER ===== -->
+    <div class="content max-w-6xl mx-auto px-4 pt-8">
+        <header class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div>
+                <h1 style="font-family:'Space Mono',monospace;font-size:1.4rem;letter-spacing:-0.02em;"
+                    class="bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent font-bold">
+                    DigitalBalance<span style="color:rgba(99,102,241,0.5)">_</span>AI
+                </h1>
+                <p style="font-size:12px;color:var(--muted);margin-top:2px;">Teen Smartphone Addiction Monitor · Dataset: 3,000 teens</p>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <span style="font-size:12px;color:var(--muted);">View as:</span>
+                <div class="toggle-bar">
+                    <button class="toggle-btn active" id="btn-parent" onclick="switchView('parent')">
+                        👤 Parent
+                    </button>
+                    <button class="toggle-btn" id="btn-kid" onclick="switchView('kid')">
+                        🎮 Kid
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- ===== PARENT VIEW ===== -->
+        <div id="parent-view">
+
+            <!-- Status Banner -->
+            <div class="glass mb-6 px-5 py-3 flex flex-wrap gap-4 items-center justify-between" style="border-color:rgba(244,63,94,0.3);background:rgba(244,63,94,0.06);">
+                <div class="flex items-center gap-3">
+                    <div class="pulse-dot"></div>
+                    <span style="font-family:'Space Mono',monospace;font-size:11px;color:#f43f5e;letter-spacing:0.08em;font-weight:700;">HIGH ADDICTION RISK DETECTED</span>
+                </div>
+                <div class="flex gap-6">
+                    <span class="stat-badge" style="background:rgba(244,63,94,0.12);color:#f43f5e;">MODEL CONFIDENCE: 94.2%</span>
+                    <span class="stat-badge" style="background:rgba(99,102,241,0.12);color:#818cf8;">TARGET: Addiction_Level (R²=0.68)</span>
+                </div>
+            </div>
+
+            <!-- Main Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+                <!-- Left Column -->
+                <div class="lg:col-span-4 flex flex-col gap-5">
+
+                    <!-- Prediction Score -->
+                    <div class="glass p-6 anim-in">
+                        <p style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:0.1em;margin-bottom:16px;">AI ADDICTION PREDICTION</p>
+                        <div class="flex items-center gap-5">
+                            <div class="score-ring" style="--pct:87;">
+                                <div class="score-inner">
+                                    <div style="font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#f43f5e;line-height:1;">8.7</div>
+                                    <div style="font-size:10px;color:var(--muted);">/10</div>
+                                </div>
+                            </div>
+                            <div>
+                                <p style="font-size:13px;color:var(--muted);line-height:1.6;">Primary driver:<br>
+                                    <span style="color:var(--text);font-weight:600;">Nighttime Social Media</span><br>
+                                    <span style="font-size:11px;color:var(--muted);">Daily usage: <span style="color:#f43f5e;">9.5h</span> · Sleep: <span style="color:#f43f5e;">4.2h</span></span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Feature contributions -->
+                        <div class="mt-5 space-y-3">
+                            <p style="font-size:11px;color:var(--muted);letter-spacing:0.06em;">TOP PREDICTIVE FEATURES (from dataset)</p>
+                            <div class="space-y-2">
+                                <div>
+                                    <div class="flex justify-between mb-1" style="font-size:12px;">
+                                        <span>Daily_Usage_Hours</span>
+                                        <span style="color:#22d3ee;font-family:'Space Mono',monospace;">r=0.82</span>
+                                    </div>
+                                    <div class="xp-bar"><div class="meter-fill" style="--fill:82%;width:82%;background:linear-gradient(90deg,#6366f1,#22d3ee);"></div></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1" style="font-size:12px;">
+                                        <span>Apps_Used_Daily</span>
+                                        <span style="color:#22d3ee;font-family:'Space Mono',monospace;">r=0.75</span>
+                                    </div>
+                                    <div class="xp-bar"><div class="meter-fill" style="--fill:75%;width:75%;background:linear-gradient(90deg,#6366f1,#22d3ee);"></div></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1" style="font-size:12px;">
+                                        <span>Time_on_Social_Media</span>
+                                        <span style="color:#22d3ee;font-family:'Space Mono',monospace;">r=0.69</span>
+                                    </div>
+                                    <div class="xp-bar"><div class="meter-fill" style="--fill:69%;width:69%;background:linear-gradient(90deg,#6366f1,#22d3ee);"></div></div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between mb-1" style="font-size:12px;">
+                                        <span>Phone_Checks_Per_Day</span>
+                                        <span style="color:#22d3ee;font-family:'Space Mono',monospace;">r=0.61</span>
+                                    </div>
+                                    <div class="xp-bar"><div class="meter-fill" style="--fill:61%;width:61%;background:linear-gradient(90deg,#6366f1,#22d3ee);"></div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Quality Card -->
+                    <div class="glass p-5 anim-in">
+                        <p style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:0.1em;margin-bottom:14px;">MODEL DATA AUDIT (HW2 RESULTS)</p>
+                        <div class="space-y-3" style="font-size:13px;">
+                            <div class="flex justify-between items-center">
+                                <span style="color:var(--muted);">Dataset Size</span>
+                                <span style="font-family:'Space Mono',monospace;color:var(--ok);">3,000 rows × 25 cols</span>
+                            </div>
+                            <hr class="divider">
+                            <div class="flex justify-between items-center">
+                                <span style="color:var(--muted);">Missing Values</span>
+                                <span class="stat-badge" style="background:rgba(74,222,128,0.12);color:#4ade80;">0 (CLEAN)</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span style="color:var(--muted);">Duplicates</span>
+                                <span class="stat-badge" style="background:rgba(74,222,128,0.12);color:#4ade80;">0 FOUND</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span style="color:var(--muted);">Class Balance</span>
+                                <span class="stat-badge" style="background:rgba(74,222,128,0.12);color:#4ade80;">UNIFORM ✓</span>
+                            </div>
+                            <hr class="divider">
+                            <div class="flex justify-between items-center">
+                                <span style="color:var(--muted);">Model R² Score</span>
+                                <span style="font-family:'Space Mono',monospace;color:#f59e0b;font-size:15px;font-weight:700;">0.68</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center Column -->
+                <div class="lg:col-span-5 flex flex-col gap-5">
+
+                    <!-- App Usage Chart -->
+                    <div class="glass p-6 anim-in">
+                        <div class="flex justify-between items-center mb-5">
+                            <p style="font-weight:600;font-size:15px;">App Usage Breakdown</p>
+                            <select class="text-xs rounded-lg px-2 py-1" style="background:#1e293b;border:1px solid var(--border);color:var(--text);outline:none;">
+                                <option>Last 24 Hours</option>
+                                <option>Last 7 Days</option>
+                            </select>
+                        </div>
+                        <div style="height:200px;position:relative;">
+                            <canvas id="usagePieChart"></canvas>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3 mt-5">
+                            <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:12px;text-align:center;">
+                                <p style="font-size:10px;color:var(--muted);letter-spacing:0.06em;margin-bottom:4px;">SLEEP</p>
+                                <p style="font-family:'Space Mono',monospace;font-size:20px;color:#f43f5e;font-weight:700;">4.2h</p>
+                                <p style="font-size:10px;color:var(--muted);">↓ below 8h</p>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:12px;text-align:center;">
+                                <p style="font-size:10px;color:var(--muted);letter-spacing:0.06em;margin-bottom:4px;">USAGE</p>
+                                <p style="font-family:'Space Mono',monospace;font-size:20px;color:#f43f5e;font-weight:700;">9.5h</p>
+                                <p style="font-size:10px;color:var(--muted);">↑ 3× avg</p>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.04);border-radius:12px;padding:12px;text-align:center;">
+                                <p style="font-size:10px;color:var(--muted);letter-spacing:0.06em;margin-bottom:4px;">CHECKS</p>
+                                <p style="font-family:'Space Mono',monospace;font-size:20px;color:#f59e0b;font-weight:700;">84x</p>
+                                <p style="font-size:10px;color:var(--muted);">per day</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Week Trend -->
+                    <div class="glass p-6 anim-in">
+                        <p style="font-weight:600;font-size:15px;margin-bottom:16px;">7-Day Addiction Trend</p>
+                        <div style="height:130px;">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="lg:col-span-3 flex flex-col gap-5">
+
+                    <!-- Parental Actions -->
+                    <div class="anim-in" style="background:linear-gradient(135deg,#4338ca,#6366f1);border-radius:20px;padding:20px;">
+                        <p style="font-weight:700;font-size:14px;margin-bottom:14px;letter-spacing:-0.01em;">Parental Workflow</p>
+
+                        <div class="space-y-3">
+                            <div style="background:rgba(255,255,255,0.1);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.1);">
+                                <p style="font-size:10px;font-weight:700;color:rgba(199,210,254,1);letter-spacing:0.08em;margin-bottom:4px;">STEP 1 · MITIGATION</p>
+                                <p style="font-size:12px;line-height:1.5;">Enable <strong>Night Mode</strong> — block social apps after 9 PM. Correlated with −2.3h usage.</p>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.1);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.1);">
+                                <p style="font-size:10px;font-weight:700;color:rgba(199,210,254,1);letter-spacing:0.08em;margin-bottom:4px;">STEP 2 · DAILY CAP</p>
+                                <p style="font-size:12px;line-height:1.5;">Set a <strong>3h/day screen limit</strong> for social & gaming apps.</p>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.1);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.1);">
+                                <p style="font-size:10px;font-weight:700;color:rgba(199,210,254,1);letter-spacing:0.08em;margin-bottom:4px;">STEP 3 · PROFESSIONAL</p>
+                                <p style="font-size:12px;line-height:1.5;">Score 8.7 warrants consultation with a digital health specialist.</p>
+                            </div>
+                        </div>
+
+                        <button onclick="alert('Opening professional finder…')"
+                            style="width:100%;margin-top:16px;background:white;color:#4338ca;font-weight:700;font-size:13px;padding:11px;border-radius:12px;border:none;cursor:pointer;transition:opacity 0.2s;"
+                            onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                            Find a Professional →
+                        </button>
+                    </div>
+
+                    <!-- Recent Alerts -->
+                    <div class="glass p-5 anim-in">
+                        <p style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:0.1em;margin-bottom:14px;">RECENT ALERTS</p>
+                        <div class="space-y-3">
+                            <div style="display:flex;gap:10px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--border);">
+                                <div style="width:8px;height:8px;border-radius:50%;background:#f43f5e;margin-top:5px;flex-shrink:0;box-shadow:0 0 8px rgba(244,63,94,0.6);"></div>
+                                <div>
+                                    <p style="font-size:12px;line-height:1.4;">Gaming exceeded 3-hour limit at <strong>2:00 AM</strong></p>
+                                    <p style="font-size:10px;color:var(--muted);margin-top:2px;">2h ago</p>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:10px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid var(--border);">
+                                <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-top:5px;flex-shrink:0;box-shadow:0 0 8px rgba(245,158,11,0.6);"></div>
+                                <div>
+                                    <p style="font-size:12px;line-height:1.4;">Social media usage up <strong>+20%</strong> vs yesterday</p>
+                                    <p style="font-size:10px;color:var(--muted);margin-top:2px;">6h ago</p>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:10px;align-items:flex-start;">
+                                <div style="width:8px;height:8px;border-radius:50%;background:#6366f1;margin-top:5px;flex-shrink:0;box-shadow:0 0 8px rgba(99,102,241,0.6);"></div>
+                                <div>
+                                    <p style="font-size:12px;line-height:1.4;">Sleep detected at <strong>3:18 AM</strong> — 4.2h total</p>
+                                    <p style="font-size:10px;color:var(--muted);margin-top:2px;">Today</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Business Impact (from HW1) -->
+                    <div class="glass p-5 anim-in" style="border-color:rgba(245,158,11,0.2);">
+                        <p style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:0.1em;margin-bottom:12px;">BUSINESS IMPACT ESTIMATE</p>
+                        <p style="font-size:11px;color:var(--muted);line-height:1.6;">
+                            High addiction teens show:<br>
+                            <span style="color:#f59e0b;">3×</span> higher mental health claims<br>
+                            <span style="color:#f59e0b;">2.3×</span> higher sleep disorder claims<br>
+                            <span style="color:var(--muted);font-size:10px;">Source: HW2 business justification</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== KID VIEW ===== -->
+        <div id="kid-view" class="hidden">
+
+            <!-- Kid Header -->
+            <div class="text-center mb-8 anim-in">
+                <div style="font-size:52px;margin-bottom:8px;" class="anim-in">🎮</div>
+                <h2 style="font-family:'Space Mono',monospace;font-size:1.6rem;font-weight:700;" class="glow-text">Your Screen Quest</h2>
+                <p style="color:rgba(255,255,255,0.4);font-size:14px;margin-top:4px;">Balance your time. Earn rewards. Level up IRL!</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+                <!-- Profile & XP -->
+                <div class="lg:col-span-4 flex flex-col gap-5">
+
+                    <!-- Profile Card -->
+                    <div class="glass-warm p-6 anim-in" style="border-radius:20px;">
+                        <div class="flex items-center gap-4 mb-5">
+                            <div style="width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#f59e0b,#f97316);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">🦊</div>
+                            <div>
+                                <p style="font-weight:700;font-size:16px;">Alex_Gamer01</p>
+                                <p style="font-size:12px;color:rgba(255,255,255,0.4);">Level 4 · Screen Warrior</p>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="flex justify-between mb-2" style="font-size:12px;color:rgba(255,255,255,0.5);">
+                                <span>XP to next level</span>
+                                <span style="color:#f59e0b;font-family:'Space Mono',monospace;">680 / 1000</span>
+                            </div>
+                            <div class="xp-bar"><div class="xp-fill" style="--fill:68%;"></div></div>
+                        </div>
+
+                        <!-- Today's meters -->
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between mb-1" style="font-size:12px;color:rgba(255,255,255,0.5);">
+                                    <span>📱 Screen Time</span>
+                                    <span style="color:#f43f5e;">9.5h <span style="color:rgba(255,255,255,0.3);font-size:10px;">/ 3h goal</span></span>
+                                </div>
+                                <div style="height:8px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;">
+                                    <div class="meter-fill" style="width:100%;background:linear-gradient(90deg,#f59e0b,#f43f5e);box-shadow:0 0 8px rgba(244,63,94,0.5);"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1" style="font-size:12px;color:rgba(255,255,255,0.5);">
+                                    <span>😴 Sleep</span>
+                                    <span style="color:#f59e0b;">4.2h <span style="color:rgba(255,255,255,0.3);font-size:10px;">/ 8h goal</span></span>
+                                </div>
+                                <div style="height:8px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;">
+                                    <div class="meter-fill" style="width:52%;background:linear-gradient(90deg,#f59e0b,#fb923c);"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1" style="font-size:12px;color:rgba(255,255,255,0.5);">
+                                    <span>📚 Learning Time</span>
+                                    <span style="color:#4ade80;">0.8h <span style="color:rgba(255,255,255,0.3);font-size:10px;">/ 1h goal</span></span>
+                                </div>
+                                <div style="height:8px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;">
+                                    <div class="meter-fill" style="width:80%;background:linear-gradient(90deg,#4ade80,#22d3ee);box-shadow:0 0 8px rgba(74,222,128,0.4);"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Badges -->
+                    <div class="glass-warm p-5 anim-in">
+                        <p style="font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:0.08em;margin-bottom:14px;">YOUR BADGES</p>
+                        <div class="grid grid-cols-4 gap-2">
+                            <div class="badge-item badge-earned tip" data-tip="Slept 8h in a row!">
+                                <span>😴</span>
+                                <span style="font-size:8px;color:rgba(255,255,255,0.5);">Dreamer</span>
+                            </div>
+                            <div class="badge-item badge-earned tip" data-tip="Used 0 social apps for 1 day">
+                                <span>🏆</span>
+                                <span style="font-size:8px;color:rgba(255,255,255,0.5);">Unplugged</span>
+                            </div>
+                            <div class="badge-item badge-earned tip" data-tip="Read for 30 min">
+                                <span>📖</span>
+                                <span style="font-size:8px;color:rgba(255,255,255,0.5);">Scholar</span>
+                            </div>
+                            <div class="badge-item badge-locked tip" data-tip="Complete 7-day streak!">
+                                <span>🔒</span>
+                                <span style="font-size:8px;color:rgba(255,255,255,0.3);">Streak</span>
+                            </div>
+                            <div class="badge-item badge-locked tip" data-tip="Sleep before 10 PM for 3 days">
+                                <span>🔒</span>
+                                <span style="font-size:8px;color:rgba(255,255,255,0.3);">EarlyBird</span>
+                            </div>
+                            <div class="badge-item badge-locked tip" data-tip="Under 3h screen time!">
+                                <span>🔒</span>
+                                <span style="font-size:8px;color:rgba(255,255,255,0.3);">Light Use</span>
+                            </div>
+                            <div class="badge-item badge-locked tip" data-tip="Go outside for 1h">
+                                <span>🔒</span>
+                                <span style="font-size:8px;color:rgba(255,255,255,0.3);">Explorer</span>
+                            </div>
+                            <div class="badge-item badge-locked tip" data-tip="Reach Level 5!">
+                                <span>🔒</span>
+                                <span style="font-size:8px;color:rgba(255,255,255,0.3);">Lvl Up</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quests + Chart -->
+                <div class="lg:col-span-5 flex flex-col gap-5">
+
+                    <!-- Daily Quests -->
+                    <div class="glass-warm p-5 anim-in">
+                        <div class="flex justify-between items-center mb-4">
+                            <p style="font-weight:700;font-size:15px;">⚡ Today's Quests</p>
+                            <span class="stat-badge" style="background:rgba(245,158,11,0.15);color:#f59e0b;">2 / 5 done</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="quest-card done">
+                                <div class="quest-icon">📖</div>
+                                <div>
+                                    <p style="font-size:13px;font-weight:600;text-decoration:line-through;opacity:0.6;">Read or study for 30 min</p>
+                                    <p style="font-size:11px;color:rgba(255,255,255,0.3);">+50 XP · Completed ✓</p>
+                                </div>
+                            </div>
+                            <div class="quest-card done">
+                                <div class="quest-icon">🛑</div>
+                                <div>
+                                    <p style="font-size:13px;font-weight:600;text-decoration:line-through;opacity:0.6;">No phone before 8 AM</p>
+                                    <p style="font-size:11px;color:rgba(255,255,255,0.3);">+30 XP · Completed ✓</p>
+                                </div>
+                            </div>
+                            <div class="quest-card">
+                                <div class="quest-icon">😴</div>
+                                <div>
+                                    <p style="font-size:13px;font-weight:600;">Sleep by 10 PM tonight</p>
+                                    <p style="font-size:11px;color:#f59e0b;">+80 XP · In progress…</p>
+                                </div>
+                            </div>
+                            <div class="quest-card">
+                                <div class="quest-icon">🏃</div>
+                                <div>
+                                    <p style="font-size:13px;font-weight:600;">Go outside for 30 min</p>
+                                    <p style="font-size:11px;color:#f59e0b;">+60 XP · Not started</p>
+                                </div>
+                            </div>
+                            <div class="quest-card">
+                                <div class="quest-icon">📵</div>
+                                <div>
+                                    <p style="font-size:13px;font-weight:600;">Keep total screen time under 3h</p>
+                                    <p style="font-size:11px;color:#f43f5e;">+100 XP · ⚠ Over limit</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Weekly Chart (kid style) -->
+                    <div class="glass-warm p-5 anim-in">
+                        <p style="font-weight:600;font-size:14px;margin-bottom:14px;">📊 Your Week</p>
+                        <div style="height:140px;">
+                            <canvas id="kidTrendChart"></canvas>
+                        </div>
+                        <p style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:10px;text-align:center;">🎯 Goal: keep bars in the <span style="color:#4ade80;">green zone</span> below 3h</p>
+                    </div>
+                </div>
+
+                <!-- Right column: Leaderboard + Tips -->
+                <div class="lg:col-span-3 flex flex-col gap-5">
+
+                    <!-- Weekly Score -->
+                    <div class="anim-in" style="background:linear-gradient(135deg,#92400e,#b45309);border-radius:20px;padding:20px;text-align:center;">
+                        <p style="font-size:11px;color:rgba(255,220,100,0.7);letter-spacing:0.08em;margin-bottom:8px;">THIS WEEK'S SCORE</p>
+                        <div style="font-family:'Space Mono',monospace;font-size:52px;font-weight:700;line-height:1;color:#fbbf24;text-shadow:0 0 30px rgba(251,191,36,0.6);">680</div>
+                        <p style="font-size:12px;color:rgba(255,220,100,0.6);margin-top:4px;">XP earned</p>
+                        <div style="margin-top:16px;padding:10px;background:rgba(0,0,0,0.2);border-radius:12px;">
+                            <p style="font-size:12px;color:rgba(255,220,100,0.8);">Next reward at <strong style="color:#fbbf24;">1,000 XP</strong></p>
+                            <p style="font-size:11px;color:rgba(255,220,100,0.5);margin-top:2px;">🎁 Extra gaming hour!</p>
+                        </div>
+                    </div>
+
+                    <!-- Leaderboard -->
+                    <div class="glass-warm p-5 anim-in">
+                        <p style="font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:0.08em;margin-bottom:12px;">🏅 FRIEND LEADERBOARD</p>
+                        <div class="space-y-2">
+                            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(245,158,11,0.1);border-radius:10px;border:1px solid rgba(245,158,11,0.2);">
+                                <span style="font-size:14px;">🥇</span>
+                                <div style="flex:1;">
+                                    <p style="font-size:12px;font-weight:600;">Sam_B</p>
+                                    <div style="height:4px;border-radius:999px;background:rgba(255,255,255,0.08);margin-top:3px;overflow:hidden;">
+                                        <div style="width:95%;height:100%;background:#f59e0b;border-radius:999px;"></div>
+                                    </div>
+                                </div>
+                                <span style="font-family:'Space Mono',monospace;font-size:11px;color:#f59e0b;">950</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,255,255,0.08);">
+                                <span style="font-size:14px;">🥈</span>
+                                <div style="flex:1;">
+                                    <p style="font-size:12px;font-weight:600;">Jordan_K</p>
+                                    <div style="height:4px;border-radius:999px;background:rgba(255,255,255,0.08);margin-top:3px;overflow:hidden;">
+                                        <div style="width:80%;height:100%;background:#94a3b8;border-radius:999px;"></div>
+                                    </div>
+                                </div>
+                                <span style="font-family:'Space Mono',monospace;font-size:11px;color:#94a3b8;">810</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(99,102,241,0.1);border-radius:10px;border:1px solid rgba(99,102,241,0.3);">
+                                <span style="font-size:14px;">⭐</span>
+                                <div style="flex:1;">
+                                    <p style="font-size:12px;font-weight:600;">You · Alex</p>
+                                    <div style="height:4px;border-radius:999px;background:rgba(255,255,255,0.08);margin-top:3px;overflow:hidden;">
+                                        <div style="width:68%;height:100%;background:#6366f1;border-radius:999px;"></div>
+                                    </div>
+                                </div>
+                                <span style="font-family:'Space Mono',monospace;font-size:11px;color:#818cf8;">680</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.06);">
+                                <span style="font-size:14px;">4️⃣</span>
+                                <div style="flex:1;">
+                                    <p style="font-size:12px;font-weight:600;">Priya_M</p>
+                                    <div style="height:4px;border-radius:999px;background:rgba(255,255,255,0.08);margin-top:3px;overflow:hidden;">
+                                        <div style="width:50%;height:100%;background:#64748b;border-radius:999px;"></div>
+                                    </div>
+                                </div>
+                                <span style="font-family:'Space Mono',monospace;font-size:11px;color:#64748b;">520</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fun Tips -->
+                    <div class="glass-warm p-5 anim-in">
+                        <p style="font-size:11px;color:rgba(255,255,255,0.4);letter-spacing:0.08em;margin-bottom:12px;">💡 DID YOU KNOW?</p>
+                        <p style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.6;">
+                            Teens who sleep <strong style="color:#f59e0b;">8+ hours</strong> score <strong style="color:#4ade80;">2× higher</strong> in focus — and in games too! 🎮
+                        </p>
+                        <p style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:8px;">Complete "Sleep by 10 PM" to unlock the <strong style="color:#f59e0b;">EarlyBird</strong> badge!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== VIEW TOGGLE =====
+        function switchView(view) {
+            const parent = document.getElementById('parent-view');
+            const kid = document.getElementById('kid-view');
+            const btnP = document.getElementById('btn-parent');
+            const btnK = document.getElementById('btn-kid');
+            const stars = document.getElementById('stars-layer');
+
+            if (view === 'parent') {
+                parent.classList.remove('hidden');
+                kid.classList.add('hidden');
+                btnP.classList.add('active');
+                btnP.classList.remove('kid-active');
+                btnK.classList.remove('active', 'kid-active');
+                stars.style.opacity = '0';
+                document.body.style.background = '#080c14';
+            } else {
+                parent.classList.add('hidden');
+                kid.classList.remove('hidden');
+                btnK.classList.add('active', 'kid-active');
+                btnK.classList.remove('active'); // reset then re-add to force style
+                btnK.classList.add('kid-active');
+                btnP.classList.remove('active');
+                stars.style.opacity = '1';
+                document.body.style.background = 'linear-gradient(160deg, #0d1117 0%, #1a0d2e 50%, #0d1a1a 100%)';
+            }
+
+            // Re-init charts on switch
+            setTimeout(() => {
+                if (view === 'parent') { initParentCharts(); }
+                else { initKidCharts(); }
+            }, 50);
+        }
+
+        // ===== STARS =====
+        (function generateStars() {
+            const layer = document.getElementById('stars-layer');
+            for (let i = 0; i < 60; i++) {
+                const s = document.createElement('div');
+                const size = Math.random() * 2.5 + 0.5;
+                s.className = 'star';
+                s.style.cssText = `
+                    width:${size}px;height:${size}px;
+                    left:${Math.random()*100}%;top:${Math.random()*100}%;
+                    --dur:${2+Math.random()*4}s;--delay:${Math.random()*3}s;
+                    opacity:0;
+                `;
+                layer.appendChild(s);
+            }
+        })();
+
+        // ===== CHARTS =====
+        let parentPieChart, parentTrendChart, kidTrendChartInstance;
+
+        function initParentCharts() {
+            if (parentPieChart) parentPieChart.destroy();
+            if (parentTrendChart) parentTrendChart.destroy();
+
+            const pieCtx = document.getElementById('usagePieChart').getContext('2d');
+            parentPieChart = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Social Media', 'Gaming', 'Education', 'Utility'],
+                    datasets: [{
+                        data: [5.2, 3.1, 0.8, 0.4],
+                        backgroundColor: [
+                            'rgba(99,102,241,0.85)',
+                            'rgba(244,63,94,0.85)',
+                            'rgba(34,211,238,0.85)',
+                            'rgba(100,116,139,0.5)'
+                        ],
+                        borderColor: '#0f1728',
+                        borderWidth: 4,
+                        hoverOffset: 12
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: '#64748b', font: { size: 10, weight: 'bold' }, usePointStyle: true, padding: 16 }
+                        }
+                    },
+                    cutout: '72%'
+                }
+            });
+
+            const tCtx = document.getElementById('trendChart').getContext('2d');
+            parentTrendChart = new Chart(tCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    datasets: [{
+                        label: 'Addiction Score',
+                        data: [6.2, 7.1, 6.8, 8.0, 7.5, 9.2, 8.7],
+                        borderColor: '#f43f5e',
+                        backgroundColor: 'rgba(244,63,94,0.08)',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#f43f5e',
+                        pointRadius: 4,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 10 } } },
+                        y: { min: 0, max: 10, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function initKidCharts() {
+            if (kidTrendChartInstance) kidTrendChartInstance.destroy();
+
+            const ctx = document.getElementById('kidTrendChart').getContext('2d');
+            kidTrendChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today'],
+                    datasets: [{
+                        label: 'Screen Hours',
+                        data: [4.5, 5.2, 3.8, 6.1, 5.5, 8.2, 9.5],
+                        backgroundColor: (ctx) => {
+                            return ctx.raw > 3
+                                ? 'rgba(244,63,94,0.75)'
+                                : 'rgba(74,222,128,0.75)';
+                        },
+                        borderRadius: 8,
+                        borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        annotation: {
+                            annotations: {
+                                goalLine: {
+                                    type: 'line',
+                                    yMin: 3, yMax: 3,
+                                    borderColor: '#4ade80',
+                                    borderWidth: 2,
+                                    borderDash: [4, 4]
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 } } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'rgba(255,255,255,0.3)', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        // Init on load
+        window.addEventListener('load', initParentCharts);
+    </script>
+</body>
+</html>
